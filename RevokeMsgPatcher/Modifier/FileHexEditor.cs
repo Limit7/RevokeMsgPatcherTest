@@ -1,11 +1,7 @@
 ﻿using RevokeMsgPatcher.Model;
 using RevokeMsgPatcher.Utils;
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RevokeMsgPatcher.Modifier
 {
@@ -17,6 +13,8 @@ namespace RevokeMsgPatcher.Modifier
 
         public string FileBakPath { get; set; }
 
+        private string fileReplacedPath;
+
         private string version;
         public string FileVersion
         {
@@ -27,6 +25,14 @@ namespace RevokeMsgPatcher.Modifier
                     version = FileUtil.GetFileVersion(FilePath);
                 }
                 return version;
+            }
+        }
+
+        public string BackupFileVersion
+        {
+            get
+            {
+                return FileUtil.GetFileVersion(FileBakPath);
             }
         }
 
@@ -45,7 +51,20 @@ namespace RevokeMsgPatcher.Modifier
 
         public TargetInfo FileTargetInfo { get; set; }
 
+        /// <summary>
+        /// 通过比对SHA1得到的特定版本的修改信息
+        /// </summary>
         public ModifyInfo FileModifyInfo { get; set; }
+
+        /// <summary>
+        /// 通过比对版本范围得到的通用查找替换的修改信息（特征码替换信息）
+        /// </summary>
+        public CommonModifyInfo FileCommonModifyInfo { get; set; }
+
+        /// <summary>
+        /// 将要执行的修改
+        /// </summary>
+        public List<Change> TargetChanges { get; set; }
 
         public FileHexEditor(string installPath, TargetInfo target)
         {
@@ -53,19 +72,47 @@ namespace RevokeMsgPatcher.Modifier
             FileName = FileTargetInfo.Name;
             FilePath = Path.Combine(installPath, FileTargetInfo.RelativePath);
             FileBakPath = FilePath + ".h.bak";
+            fileReplacedPath = FilePath + ".h.process";
         }
 
+        /// <summary>
+        /// 备份
+        /// </summary>
         public void Backup()
         {
-            File.Copy(FilePath, FileBakPath, true);
+            // 不覆盖同版本的备份文件
+            if (File.Exists(FileBakPath))
+            {
+                if (FileVersion != BackupFileVersion)
+                {
+                    File.Copy(FilePath, FileBakPath, true);
+                }
+            }
+            else
+            {
+                File.Copy(FilePath, FileBakPath, true);
+            }
+
         }
 
+        /// <summary>
+        /// 打补丁
+        /// </summary>
+        /// <returns></returns>
         public bool Patch()
         {
-            FileUtil.EditMultiHex(FilePath, FileModifyInfo.Changes);
+            if (TargetChanges == null)
+            {
+                throw new BusinessException("change_null", "在安装补丁时，变更的内容为空！");
+            }
+
+            FileUtil.EditMultiHex(FilePath, TargetChanges);
             return true;
         }
 
+        /// <summary>
+        /// 还原
+        /// </summary>
         public void Restore()
         {
             File.Copy(FileBakPath, FilePath, true);

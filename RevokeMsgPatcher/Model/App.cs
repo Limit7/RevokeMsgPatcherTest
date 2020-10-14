@@ -14,15 +14,36 @@ namespace RevokeMsgPatcher.Model
 
         public Dictionary<string, List<ModifyInfo>> FileModifyInfos { get; set; }
 
+        /// <summary>
+        /// 通用的修改特征
+        /// </summary>
+        public Dictionary<string, List<CommonModifyInfo>> FileCommonModifyInfos { get; set; }
+
         public HashSet<string> GetSupportVersions()
         {
             // 使用 HashSet 防重
             HashSet<string> versions = new HashSet<string>();
-            foreach (List<ModifyInfo> modifyInfos in FileModifyInfos.Values)
+            // 精准
+            if (FileModifyInfos != null)
             {
-                foreach (ModifyInfo modifyInfo in modifyInfos)
+                foreach (List<ModifyInfo> modifyInfos in FileModifyInfos.Values)
                 {
-                    versions.Add(modifyInfo.Version);
+                    foreach (ModifyInfo modifyInfo in modifyInfos)
+                    {
+                        versions.Add(modifyInfo.Version);
+                    }
+                }
+            }
+            // 模糊 范围
+            if (FileCommonModifyInfos != null)
+            {
+                foreach (List<CommonModifyInfo> commonModifyInfos in FileCommonModifyInfos.Values)
+                {
+                    foreach (CommonModifyInfo commonModifyInfo in commonModifyInfos)
+                    {
+                        string end = string.IsNullOrEmpty(commonModifyInfo.EndVersion) ? "最新版" : commonModifyInfo.EndVersion;
+                        versions.Add(commonModifyInfo.StartVersion + "~" + end);
+                    }
                 }
             }
             return versions;
